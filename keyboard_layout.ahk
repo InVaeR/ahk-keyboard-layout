@@ -17,9 +17,9 @@ SetCapsLockState("AlwaysOff")
 #HotIf GetKeyState("CapsLock", "P")
 
 ; 📅 Дата и время
-; Caps + T          | *D    | *D: Вставить дату в формате ДД.ММ.ГГГГ
-; Caps + Shift + T  | *DT   | *DT: Вставить дату и время в формате ДД.ММ.ГГГГ ЧЧ:ММ
-; Caps + A          | *DA   | *DA: Вставить компактную дату в формате ГГГГММДД
+; Caps + T          | *D    | Вставить дату в формате ДД.ММ.ГГГГ
+; Caps + Shift + T  | *DT   | Вставить дату и время в формате ДД.ММ.ГГГГ ЧЧ:ММ
+; Caps + A          | *DA   | Вставить компактную дату в формате ГГГГММДД
 
 t::SendText(FormatTime(, "dd.MM.yyyy"))
 +t::SendText(FormatTime(, "dd.MM.yyyy HH:mm"))
@@ -29,17 +29,24 @@ a::SendText(FormatTime(, "yyyyMMdd"))
 ; 🌐 Переключение раскладки
 ; Caps + E          | EN    | Переключить раскладку на English (US)
 ; Caps + R          | RU    | Переключить раскладку на Russian
+; TODO: Добавить сообщение о смене раскладки
 
 e::SwitchLayout("00000409")
 r::SwitchLayout("00000419")
 
+; Caps + L          | *CL   | Переключить раскладку
+; переключение раскладки (Win+Space)
+l::Send("# ")
 
-; SC034 — физическая клавиша точки: . / >
-; SC033 — физическая клавиша запятой: , / <
+; или если у вас Alt+Shift:
+; l::Send("!+")
+
+
+; SC034 — scan code физическая клавиша точки: . / >
+; SC033 — scan code физическая клавиша запятой: , / <
 ;
 ; Физические scan code используются для символов, которые могут занимать
-; разное положение в разных раскладках. Это особенно важно здесь, так как
-; Caps + E и Caps + R переключают активную раскладку прямо во время работы.
+; разное положение в разных раскладках.
 
 ; ✨ Спецсимволы
 
@@ -57,11 +64,17 @@ r::SwitchLayout("00000419")
 ; Caps + 4          | ≈     | Вставить знак «примерно равно»: ≈
 ; Caps + Shift + 4  | $     | Вставить знак доллара: $
 ; Caps + 5          | ≠     | Вставить знак «не равно»: ≠
+; Caps + Shift + 5  |       | 
 ; Caps + 6          | №     | Вставить знак номера: №
+; Caps + Shift + 6  |       | 
 ; Caps + 7          | §     | Вставить знак параграфа: §
+; Caps + Shift + 7  |       | 
 ; Caps + 8          | ©     | Вставить знак копирайта: ©
+; Caps + Shift + 8  |       | 
 ; Caps + 9          | ®     | Вставить знак «зарегистрировано»: ®
+; Caps + Shift + 9  |       | 
 ; Caps + 0          | ™     | Вставить знак товарного знака: ™
+; Caps + Shift + 0  |       | 
 
 h::SendText("₽")
 
@@ -85,15 +98,28 @@ SC033::SendText(",")
 9::SendText("®")
 0::SendText("™")
 
+; 🎛️ Управление системой 
+; Caps + Q          | *QW   | Закрыть окно
+; Caps + Shift + Q  | *QS   | Выключение компьютера
+; Caps + F          | *FW   | Открыть на весь экран
+
+q::Send("!{F4}")
++q::DllCall("PowrProf\SetSuspendState", "Int", 1, "Int", 0, "Int", 0)
+
 
 ; 🚀 Запуск приложений
-; Caps + C          | *TE   | *TE: Открыть терминал PowerShell
-; Caps + Shift + C  | *CA   | *CA: Открыть калькулятор
-; Caps + B          | *BR   | *BR: Открыть браузер (домашняя страница)
+; Caps + C          | *TE   | Открыть терминал PowerShell
+; Caps + Shift + C  | *CA   | Открыть калькулятор
+; Caps + V          | *VC   | Открыть VSCode
+; Caps + B          | *BR   | Открыть браузер (домашняя страница)
 
-c::Run("powershell.exe")
+; c::Run("powershell.exe -NoExit -Command `"cd '~'`"")
+c::Run("powershell.exe -NoExit -Command `"cd 'C:\Users\WorkBook\Documents\Projects'`"")
+v::Run("code.exe")
 +c::Run("calc.exe")
 b::Run("http://")
+; e::Run("explorer.exe") 
+; +e::Run("shell:Downloads")
 
 
 ; ✍️ Типографика
@@ -101,21 +127,24 @@ b::Run("http://")
 
 ; Caps + -              | –     | Вставить короткое тире (en dash): –
 ; Caps + Shift + -      | —     | Вставить длинное тире (em dash): —
-; Caps + Space          | *NBS  | *NBS: Вставить неразрывный пробел (U+00A0)
-; Caps + Shift + Space  | *THIN | *THIN: Вставить тонкий пробел (U+2009)
+; Caps + Space          | *NBS  | Вставить неразрывный пробел (U+00A0)
+; Caps + Shift + Space  | *THIN | Вставить тонкий пробел (U+2009)
 
 SC00C::SendText("–")
 +SC00C::SendText("—")
-
 Space::Send("{U+00A0}")
 +Space::Send("{U+2009}")
 
+; Клавиша `\ / |` TODO: найти сканкод клавиши и сделать втсавку / и \
+; Caps + \              | \     | Вставить |
+; Caps + Shift + \      | /     | Вставить \
+
 
 ; 📋 Работа со строками
-; Caps + Y          | *YL   | *YL: Скопировать текущую строку в буфер обмена
-; Caps + Shift + Y  | *YA   | *YA: Выделить и скопировать весь текст
-; Caps + D          | *DL   | *DL: Дублировать текущую строку
-; Caps + Shift + D  | *DEL  | *DEL: Удалить текущую строку
+; Caps + Y          | *YL   | Скопировать текущую строку в буфер обмена
+; Caps + Shift + Y  | *YA   | Выделить и скопировать весь текст
+; Caps + D          | *DL   | Дублировать текущую строку
+; Caps + Shift + D  | *DEL  | Удалить текущую строку
 
 y::{
     ; Выделяем строку вместе с переносом и копируем её в буфер обмена.
