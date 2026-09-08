@@ -29,10 +29,9 @@ a::SendText(FormatTime(, "yyyyMMdd"))
 ; 🌐 Переключение раскладки
 ; Caps + E          | EN    | Переключить раскладку на English (US)
 ; Caps + R          | RU    | Переключить раскладку на Russian
-; TODO: Добавить сообщение о смене раскладки
 
-e::SwitchLayout("00000409")
-r::SwitchLayout("00000419")
+e::SwitchLayout("00000409", "English (US)")
+r::SwitchLayout("00000419", "Русская")
 
 ; Caps + L          | *CL   | Переключить раскладку
 ; переключение раскладки (Win+Space)
@@ -102,10 +101,33 @@ SC033::SendText(",")
 ; Caps + Q          | *QW   | Закрыть окно
 ; Caps + Shift + Q  | *QS   | Выключение компьютера
 ; Caps + F          | *FW   | Открыть на весь экран
+; Caps + G          | *CW   | Центрировать окно
 
 q::Send("!{F4}")
 +q::DllCall("PowrProf\SetSuspendState", "Int", 1, "Int", 0, "Int", 0)
 
+f::{
+    ; Переключает разворот активного окна на весь экран и обратно.
+    if WinGetStyle("A") & 0x1000000
+        WinRestore("A")
+    else
+        WinMaximize("A")
+}
+
+g::{
+    ; Разместить окно по центру экрана
+    WinGetPos(, , &winW, &winH, "A")
+    screenW := A_ScreenWidth
+    screenH := A_ScreenHeight
+    newX := (screenW - winW) / 2
+    newY := (screenH - winH) / 2
+    WinMove(newX, newY, , , "A")
+}
+
++g::{
+    ; Установить размер окна 1280x720
+    WinMove(, , 1280, 720, "A")
+}
 
 ; 🚀 Запуск приложений
 ; Caps + C          | *TE   | Открыть терминал PowerShell
@@ -135,9 +157,12 @@ SC00C::SendText("–")
 Space::Send("{U+00A0}")
 +Space::Send("{U+2009}")
 
-; Клавиша `\ / |` TODO: найти сканкод клавиши и сделать втсавку / и \
 ; Caps + \              | \     | Вставить |
 ; Caps + Shift + \      | /     | Вставить \
+
+; SC02B — scan code физической клавиши `\` над Enter.
+SC02B::SendText("|")
++SC02B::SendText("\")
 
 
 ; 📋 Работа со строками
@@ -233,7 +258,6 @@ NumpadDot::SendText("│")
 
 #HotIf
 
-
 ; ⚙ Сервис
 ; Ctrl + Alt + Q    | Завершить работу скрипта
 
@@ -244,12 +268,19 @@ NumpadDot::SendText("│")
 ; ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 ; ==============================================================================
 
+; Показывает временное всплывающее сообщение о смене раскладки.
+ShowLayoutMessage(text) {
+    TrayTip(text)
+    SetTimer(() => TrayTip(), -1500)
+}
+
 ; Переключает раскладку активного окна.
 ;
 ; locale:
 ;   00000409 — English (United States)
 ;   00000419 — Russian
-SwitchLayout(locale) {
+; label — отображаемое название раскладки в сообщении о смене.
+SwitchLayout(locale, label := "") {
     ; Загружаем или активируем запрошенную раскладку клавиатуры.
     keyboardLayout := DllCall(
         "LoadKeyboardLayout",
@@ -261,4 +292,7 @@ SwitchLayout(locale) {
     ; WM_INPUTLANGCHANGEREQUEST = 0x0050.
     ; Отправляем активному окну запрос на изменение языка ввода.
     PostMessage(0x0050, 0, keyboardLayout, , "A")
+
+    if (label != "")
+        ShowLayoutMessage(label)
 }

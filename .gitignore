@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+
+# Generated files (rebuild with: python cheatsheet/generate_cheatsheet.py keyboard_layout.ahk --theme both)
+cheatsheet/*_light.html
+cheatsheet/*_light.svg
+cheatsheet/*.png
+
+# IDE
+.idea/
+.vscode/

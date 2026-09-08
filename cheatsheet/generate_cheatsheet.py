@@ -29,40 +29,7 @@
     python cheatsheet/generate_cheatsheet.py keyboard_layout.ahk
     python cheatsheet/generate_cheatsheet.py keyboard_layout.ahk --mode image
     python cheatsheet/generate_cheatsheet.py keyboard_layout.ahk --image-format both
-
-TODO:
-
-- Убрать функцию duplicate_key_id. Вместо нее добавить возможноть отрисовки
-высокой клавиши для захардкоженных id.
-
-- Добавить вывод svg-карты клавиатуры в светлой теме для печати и соответвующий
-html-файл в светлой теме.
-
-- Название в svg-карте должно быть "Карта клавиатуры"
-
-- Таблица в html и md должна быть логично поделена на разделы и не содержать
-постоянного повторения раздела в столбце:
-
-Сейчас:
-
-| `Caps + E` | Переключить раскладку на English (US) | 🌐 Переключение раскладки |
-| `Caps + R` | Переключить раскладку на Russian | 🌐 Переключение раскладки |
-| `Caps + H` | Вставить знак рубля: ₽ | ✨ Спецсимволы |
-| `Caps + .` | Вставить многоточие: … | ✨ Спецсимволы |
-…
-
-Должно быть:
-
-### 🌐 Переключение раскладки
-| Комбинация | Действие |
-| `Caps + E` | Переключить раскладку на English (US) |
-| `Caps + R` | Переключить раскладку на Russian |
-
-### ✨ Спецсимволы
-
-| `Caps + H` | Вставить знак рубля: ₽ |
-| `Caps + .` | Вставить многоточие: … |
-…
+    python cheatsheet/generate_cheatsheet.py keyboard_layout.ahk --theme both
 
 """
 from __future__ import annotations
@@ -177,6 +144,24 @@ THEME = Theme()
 RENDER = RenderSettings()
 
 
+# Светлая тема для печати. Тот же набор полей, что и у THEME.
+def light_theme() -> Theme:
+    return Theme(
+        page_bg="#ffffff",
+        key_bg="#ececf1",
+        key_border="#c9c9d6",
+        key_text="#6a6a76",
+        main_text="#1f1f28",
+        muted_text="#45454f",
+        accent="#c4540f",
+        note_bg="#f4f4f7",
+        note_border="#d7d7e0",
+    )
+
+
+LIGHT_THEME = light_theme()
+
+
 # =============================================================================
 # ФИЗИЧЕСКАЯ РАСКЛАДКА
 # =============================================================================
@@ -247,6 +232,13 @@ LAYOUT: list[list[tuple[str, str, float]]] = [
         ("Numpad0", "0", 2), ("NumpadDot", ".", 1),
     ],
 ]
+
+# Клавиши, которые занимают несколько рядов по вертикали (двухрядная высота).
+# Ключ — внутреннее имя клавиши, значение — число рядов, которые она перекрывает.
+TALL_KEYS = {
+    "NumpadAdd": 2,
+    "NumpadEnter": 2,
+}
 
 # Альтернативные обозначения одной и той же физической клавиши.
 ALIASES = {
@@ -722,19 +714,33 @@ def render_key(
     settings: RenderSettings = RENDER,
     theme: Theme = THEME,
 ) -> list[str]:
-    """Рисует фон клавиши, а затем её активное или обычное содержимое."""
+    """Рисует фон клавиши, а затем её активное или обычное содержимое.
+
+    Высокие клавиши (двухрядные, например NumpadAdd и NumpadEnter) украшены
+    прямоугольником на всю высоту, а содержимое выравнивается по центру.
+    """
+
+    row_span = TALL_KEYS.get(key_id, 1)
+    height = (
+        settings.key_height * row_span
+        + settings.row_gap * (row_span - 1)
+    )
+
+    # Смещение, чтобы блок содержимого высотой в одну клавишу оказался
+    # по центру прямоугольника высокой клавиши.
+    content_y = y + (height - settings.key_height) / 2
 
     result = [
         f'<rect x="{x:.1f}" y="{y:.1f}" width="{width:.1f}" '
-        f'height="{settings.key_height}" rx="{settings.corner_radius}" class="base"/>'
+        f'height="{height:.1f}" rx="{settings.corner_radius}" class="base"/>'
     ]
 
     if entry is None:
-        result.extend(render_inactive_key(x, y, width, default_label, settings))
+        result.extend(render_inactive_key(x, content_y, width, default_label, settings))
     else:
         result.extend(render_active_key(
             x,
-            y,
+            content_y,
             width,
             default_label,
             entry,
@@ -772,7 +778,7 @@ def render_keyboard(
                 x += width + settings.key_gap
                 continue
 
-            lookup_id = duplicate_key_id(key_id)
+            lookup_id = key_id
             entry = active.get(lookup_id)
             result.extend(render_key(
                 x,
@@ -928,7 +934,6 @@ def calculate_canvas_height(
 
 def generate_svg(
     entries: list[Entry],
-    title: str,
     settings: RenderSettings = RENDER,
     theme: Theme = THEME,
 ) -> str:
@@ -938,12 +943,16 @@ def generate_svg(
     canvas_width = layout_width(LAYOUT, settings)
     canvas_height, notes_top = calculate_canvas_height(len(notes), settings)
 
+    # На карте всегда рисуется фиксированный заголовок, независимо от того,
+    # какой заголовок документа указан в AHK-файле.
+    map_title = "Карта клавиатуры"
+
     result = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{canvas_width}" '
         f'height="{canvas_height}" viewBox="0 0 {canvas_width} {canvas_height}">',
         svg_style(theme),
         f'<rect width="100%" height="100%" fill="{theme.page_bg}" rx="18"/>',
-        render_text(settings.margin_x, settings.title_y, title, "title"),
+        render_text(settings.margin_x, settings.title_y, map_title, "title"),
         render_text(
             settings.margin_x,
             settings.subtitle_y,
@@ -970,8 +979,19 @@ def generate_svg(
 # MARKDOWN И HTML
 # =============================================================================
 
+def group_combinations(
+    entries: Iterable[Entry],
+) -> list[tuple[str, list[tuple[str, str]]]]:
+    """Группирует комбинации по разделам, сохраняя порядок следования."""
+
+    groups: dict[str, list[tuple[str, str]]] = {}
+    for combo, action, group in combinations(entries):
+        groups.setdefault(group, []).append((combo, action))
+    return list(groups.items())
+
+
 def generate_markdown(entries: list[Entry], title: str, image_name: str) -> str:
-    """Создаёт Markdown с картой и полным списком комбинаций."""
+    """Создаёт Markdown с картой и полным списком комбинаций по разделам."""
 
     lines = [
         f"# {title}",
@@ -980,35 +1000,61 @@ def generate_markdown(entries: list[Entry], title: str, image_name: str) -> str:
         "",
         "## Полный список комбинаций",
         "",
-        "| Комбинация | Действие | Раздел |",
-        "|---|---|---|",
     ]
 
-    for combo, action, group in combinations(entries):
-        escape_cell = lambda value: value.replace("|", "\\|").replace("\n", " ")
-        lines.append(
-            f"| `{escape_cell(combo)}` | {escape_cell(action)} | {escape_cell(group)} |"
-        )
+    for group, rows in group_combinations(entries):
+        lines.extend([f"### {group}", ""])
+        lines.extend(["| Комбинация | Действие |", "|---|---|"])
+        for combo, action in rows:
+            escape_cell = lambda value: value.replace("|", "\\|").replace("\n", " ")
+            lines.append(
+                f"| `{escape_cell(combo)}` | {escape_cell(action)} |"
+            )
+        lines.append("")
 
     lines.extend([
-        "",
         f"_Сгенерировано: {datetime.now():%d.%m.%Y %H:%M}_",
         "",
     ])
     return "\n".join(lines)
 
 
-def generate_html(entries: list[Entry], title: str, svg: str) -> str:
-    """Создаёт автономный HTML; SVG встраивается непосредственно в документ."""
+def generate_html(entries: list[Entry], title: str, svg: str, light: bool = False) -> str:
+    """Создаёт автономный HTML; SVG встраивается непосредственно в документ.
 
-    rows = "".join(
-        "<tr>"
-        f"<td><kbd>{html.escape(combo)}</kbd></td>"
-        f"<td>{html.escape(action)}</td>"
-        f"<td>{html.escape(group)}</td>"
-        "</tr>\n"
-        for combo, action, group in combinations(entries)
-    )
+    Комбинации разбиты по разделам. ``light=True`` включает светлую тему
+    для печати, соответствующую светлой версии SVG-карты.
+    """
+
+    sections: list[str] = []
+    for group, rows in group_combinations(entries):
+        rows_html = "".join(
+            "<tr>"
+            f"<td><kbd>{html.escape(combo)}</kbd></td>"
+            f"<td>{html.escape(action)}</td>"
+            "</tr>\n"
+            for combo, action in rows
+        )
+        sections.append(
+            f"    <section>\n"
+            f"        <h3>{html.escape(group)}</h3>\n"
+            f"        <table>\n"
+            f"            <thead><tr><th>Комбинация</th><th>Действие</th></tr></thead>\n"
+            f"            <tbody>{rows_html}</tbody>\n"
+            f"        </table>\n"
+            f"    </section>"
+        )
+
+    if light:
+        page_bg, page_fg, table_bg, border, th, kbd_bg, kbd_border, kbd_fg, heading, small = (
+            "#ffffff", "#1f1f28", "#f4f4f7", "#d7d7e0",
+            "#9a3412", "#e6e6ee", "#c9c9d6", "#1f1f28", "#c4540f", "#6a6a76",
+        )
+    else:
+        page_bg, page_fg, table_bg, border, th, kbd_bg, kbd_border, kbd_fg, heading, small = (
+            "#11111b", "#cdd6f4", "#1e1e2e", "#45475a",
+            "#f9e2af", "#313244", "#585b70", "#ffffff", "#89b4fa", "#a6adc8",
+        )
 
     return f'''<!doctype html>
 <html lang="ru">
@@ -1017,16 +1063,17 @@ def generate_html(entries: list[Entry], title: str, svg: str) -> str:
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{html.escape(title)}</title>
 <style>
-    body {{ margin: 0; background: #11111b; color: #cdd6f4; font-family: "Segoe UI", Arial, sans-serif; }}
+    body {{ margin: 0; background: {page_bg}; color: {page_fg}; font-family: "Segoe UI", Arial, sans-serif; }}
     main {{ max-width: 1540px; margin: auto; padding: 28px; }}
-    h1 {{ color: #89b4fa; }}
-    .map {{ overflow: auto; border: 1px solid #45475a; border-radius: 14px; background: #11111b; }}
+    h1 {{ color: {heading}; }}
+    h3 {{ color: {heading}; margin: 26px 0 10px; }}
+    .map {{ overflow: auto; border: 1px solid {border}; border-radius: 14px; background: {page_bg}; }}
     .map svg {{ display: block; max-width: 100%; height: auto; }}
-    table {{ width: 100%; border-collapse: collapse; background: #1e1e2e; border-radius: 12px; overflow: hidden; }}
-    th, td {{ padding: 12px 15px; border-bottom: 1px solid #45475a; text-align: left; }}
-    th {{ color: #f9e2af; }}
-    kbd {{ background: #313244; border: 1px solid #585b70; border-radius: 5px; padding: 3px 7px; color: #fff; }}
-    small {{ color: #a6adc8; }}
+    table {{ width: 100%; border-collapse: collapse; background: {table_bg}; border-radius: 12px; overflow: hidden; }}
+    th, td {{ padding: 12px 15px; border-bottom: 1px solid {border}; text-align: left; }}
+    th {{ color: {th}; }}
+    kbd {{ background: {kbd_bg}; border: 1px solid {kbd_border}; border-radius: 5px; padding: 3px 7px; color: {kbd_fg}; }}
+    small {{ color: {small}; }}
 </style>
 </head>
 <body>
@@ -1034,10 +1081,7 @@ def generate_html(entries: list[Entry], title: str, svg: str) -> str:
     <h1>{html.escape(title)}</h1>
     <div class="map">{svg}</div>
     <h2>Полный список комбинаций</h2>
-    <table>
-        <thead><tr><th>Комбинация</th><th>Действие</th><th>Раздел</th></tr></thead>
-        <tbody>{rows}</tbody>
-    </table>
+{chr(10).join(sections)}
     <p><small>Сгенерировано: {datetime.now():%d.%m.%Y %H:%M}</small></p>
 </main>
 </body>
@@ -1096,6 +1140,12 @@ def build_argument_parser() -> argparse.ArgumentParser:
         default="Карта горячих клавиш",
         help="Заголовок, если он не задан в AHK-файле",
     )
+    parser.add_argument(
+        "--theme",
+        choices=("dark", "light", "both"),
+        default="dark",
+        help="Тема SVG-карты и HTML: тёмная, светлая (для печати) или обе",
+    )
     return parser
 
 
@@ -1107,28 +1157,43 @@ def main() -> int:
         title = str(config.get("title", args.title))
         args.output_dir.mkdir(parents=True, exist_ok=True)
 
-        svg = generate_svg(entries, title)
-        svg_path = args.output_dir / "keyboard_map.svg"
-        png_path = args.output_dir / "keyboard_map.png"
+        # Темы, которые нужно отрисовать. Тёмная сохраняется под исходными
+        # именами, светлая получает суффикс ``_light``.
+        theme_map = {"dark": (THEME, ""), "light": (LIGHT_THEME, "_light")}
+        if args.theme == "both":
+            render_themes = list(theme_map.values())
+        else:
+            render_themes = [theme_map[args.theme]]
 
         # Документам нужен файл SVG, даже если пользователь отдельно запросил PNG.
         documents_requested = args.mode in ("all", "markdown", "html")
-        if args.image_format in ("svg", "both") or documents_requested:
-            svg_path.write_text(svg, encoding="utf-8")
 
-        if args.image_format in ("png", "both"):
-            write_png(svg, png_path)
+        for theme, suffix in render_themes:
+            svg = generate_svg(entries, theme=theme)
+            svg_path = args.output_dir / f"keyboard_map{suffix}.svg"
+            png_path = args.output_dir / f"keyboard_map{suffix}.png"
+
+            if args.image_format in ("svg", "both") or documents_requested:
+                svg_path.write_text(svg, encoding="utf-8")
+
+            if args.image_format in ("png", "both"):
+                write_png(svg, png_path)
+
+            if args.mode in ("all", "html"):
+                document = generate_html(entries, title, svg, light=(theme is LIGHT_THEME))
+                doc_path = args.output_dir / f"cheatsheet{suffix}.html"
+                doc_path.write_text(document, encoding="utf-8")
 
         # Markdown ссылается на PNG только в режиме чистого PNG.
-        image_name = png_path.name if args.image_format == "png" else svg_path.name
+        # В markdown подставляется карта той темы, которая реально создана.
+        if args.theme == "light":
+            image_name = "keyboard_map_light.png" if args.image_format == "png" else "keyboard_map_light.svg"
+        else:
+            image_name = "keyboard_map.png" if args.image_format == "png" else "keyboard_map.svg"
 
         if args.mode in ("all", "markdown"):
             markdown = generate_markdown(entries, title, image_name)
             (args.output_dir / "cheatsheet.md").write_text(markdown, encoding="utf-8")
-
-        if args.mode in ("all", "html"):
-            document = generate_html(entries, title, svg)
-            (args.output_dir / "cheatsheet.html").write_text(document, encoding="utf-8")
 
         print(f"Готово: {args.output_dir.resolve()}")
         return 0
