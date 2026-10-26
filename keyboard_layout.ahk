@@ -7,6 +7,9 @@
 ; Обычное переключение регистра через CapsLock отключено.
 SetCapsLockState("AlwaysOff")
 
+; Текущее реальное состояние CapsLock (регистр)
+capsOn := false
+
 ; ==============================================================================
 ; ГОРЯЧИЕ КЛАВИШИ CAPSLOCK
 ; ==============================================================================
@@ -82,7 +85,7 @@ l::Send("# ")
 ; Caps + Shift + 3  | №     | 
 ; Caps + Shift + 4  |       | 
 ; Caps + Shift + 5  |       | 
-; Caps + Shift + 6  |       | 
+; Caps + Shift + 6  | &     | 
 ; Caps + Shift + 7  | ¿     | 
 ; Caps + Shift + 8  | ©     | 
 ; Caps + Shift + 9  | ®     | 
@@ -104,6 +107,7 @@ l::Send("# ")
 +1::SendText("≈")
 +2::SendText("@")
 +3::SendText("№")
++6::SendText("&")
 +7::SendText("¿")
 +8::SendText("©")
 +9::SendText("®")
@@ -116,8 +120,10 @@ l::Send("# ")
 ; Caps + Shift + ,  | ≤     | 
 ; Caps + .          | …     | 
 ; Caps + Shift + .  | ≥     | 
+; Caps + Shift + H  | §     | 
 
 h::SendText("₽")
++h::SendText("§")
 
 SC034::SendText("…")
 +SC034::SendText("≥")
@@ -134,6 +140,8 @@ SC033::SendText(",")
 ; Caps + Shift + [  | {     | 
 ; Caps + ]          | ]     | 
 ; Caps + Shift + ]  | }     | 
+; Caps + '          | '     | 
+; Caps + Shift + '  | "     |
 
 ; SC027 — scan code физической клавиши `;` (в RU-раскладке там «ж»).
 SC027::SendText(";")
@@ -145,18 +153,22 @@ SC01A::SendText("[")
 +SC01A::SendText("{")
 SC01B::SendText("]")
 +SC01B::SendText("}")
+SC028::SendText("'")
++SC028::SendText("`"")
 
 ; Точка с Numpad (RU точка на основном блоке недоступна).
 +NumpadDot::SendText(".")
 
 ; 🎛️ Управление системой 
 ; Caps + Q          | *QW   | Закрыть окно
+; Caps + W          | *QW   | Закрыть окно
 ; Caps + Shift + Q  | *QS   | Выключение компьютера
 ; Caps + F          | *FW   | Открыть на весь экран
 ; Caps + G          | *CW   | Центрировать окно
 ; Caps + Shift + G  | *G720 | Установить размер окна 1280x720
 
 q::Send("!{F4}")
+w::Send("!{F4}")
 +q::DllCall("PowrProf\SetSuspendState", "Int", 1, "Int", 0, "Int", 0)
 
 f::{
@@ -220,8 +232,8 @@ Space::Send("{U+00A0}")
 ; Caps + Shift + \      | /     | Вставить /
 
 ; SC02B — scan code физической клавиши `\` над Enter.
-SC02B::SendText("/")
-+SC02B::SendText("\")
+SC02B::SendText("\")
++SC02B::SendText("/")
 
 
 ; 📋 Работа со строками
@@ -229,6 +241,10 @@ SC02B::SendText("/")
 ; Caps + Shift + Y  | *YA   | Выделить и скопировать весь текст
 ; Caps + D          | *DL   | Дублировать текущую строку
 ; Caps + Shift + D  | *DEL  | Удалить текущую строку
+; Caps + I           | *HM   | В начало строки (Home)
+; Caps + O           | *ED   | В конец строки (End)
+; Caps + Shift + I   | *HD   | В начало документа
+; Caps + Shift + O   | *ED   | В конец документа
 
 y::{
     ; Выделяем строку вместе с переносом и копируем её в буфер обмена.
@@ -267,6 +283,11 @@ d::{
     Send("{Shift down}{Down}{Shift up}")
     Send("{Delete}")
 }
+
+i::Send("{Home}")
+o::Send("{End}")
++i::Send("^{Home}")
++o::Send("^{End}")
 
 
 ; ↑ Стрелки
@@ -311,6 +332,14 @@ Numpad3::SendText("┘")
 Numpad0::SendText("─")
 NumpadDot::SendText("│")
 
+; Caps + Numpad*      | *ML   | Вставить: × (знак умножения)
+; Caps + Numpad/      | *DV   | Вставить: ÷ (знак деления)
+; Caps + Numpad-      | *MN   | Вставить: − (минус U+2212, не дефис)
+
+NumpadMult::SendText("×")
+NumpadDiv::SendText("÷")
+NumpadSub::SendText("−")
+
 
 ; Завершение области действия условия.
 ; Следующие горячие клавиши уже не требуют удержания CapsLock.
@@ -319,13 +348,25 @@ NumpadDot::SendText("│")
 
 ; ⚙ Сервис
 ; Ctrl + Alt + Q    | Завершить работу скрипта
+; LShift + RShift   | Переключить CapsLock
 
 ^!q::ExitApp()
 
+; LSHIFT + RSHIFT → ПЕРЕКЛЮЧИТЬ CAPSLOCK
+
+LShift & RShift::ToggleCaps()
+RShift & LShift::ToggleCaps()
 
 ; ==============================================================================
 ; ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 ; ==============================================================================
+
+ToggleCaps() {
+    global capsOn
+    capsOn := !capsOn
+    SetCapsLockState(capsOn ? "AlwaysOn" : "AlwaysOff")
+    ; ShowLayoutMessage(capsOn ? "CapsLock: ВКЛ" : "CapsLock: выкл")
+}
 
 ; Показывает временное всплывающее сообщение о смене раскладки.
 ShowLayoutMessage(text) {
