@@ -426,10 +426,12 @@ ConvertLayout(text) {
 
     out := ""
     for char in StrSplit(text) {
-        if (p := InStr(ruMap, char, true))       ; true = учитывать регистр
-            out .= SubStr(enMap, p, 1)
-        else if (p := InStr(enMap, char, true))
+        ; Сначала пробуем перевести из английской раскладки в русскую.
+        if (p := InStr(enMap, char, true))       ; true = учитывать регистр
             out .= SubStr(ruMap, p, 1)
+        ; Потом — обратное направление: из русской в английскую.
+        else if (p := InStr(ruMap, char, true))
+            out .= SubStr(enMap, p, 1)
         else
             out .= char                          ; пробелы, Enter, эмодзи и пр.
     }
