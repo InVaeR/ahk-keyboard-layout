@@ -198,17 +198,14 @@ g::{
 ; Caps + C          | *CMD | Открыть терминал PowerShell
 ; Caps + Shift + C  | *CALC | Открыть калькулятор
 ; Caps + V          | *VSC  | Открыть VSCode
-; Caps + Shift + V  | *VPN  | Открыть VPN приложение
+; Caps + Shift + V  | *VPN  | Открыть Happ (VPN)
 ; Caps + B          | *BR   | Открыть браузер
 
 c::Run("powershell.exe -NoExit -Command `"cd '~'`"")
 v::Run("code.exe")
 +c::Run("calc.exe")
 
-+v::{
-    ; TODO: вставьте команду запуска вашего VPN-приложения, например:
-    ; Run("C:\Program Files\VPN\VPN.exe")
-}
++v::Run('"C:\Program Files\FlyFrogLLC\Happ\Happ.exe"')
 
 b::Run("http://")
 ; e::Run("explorer.exe") 
@@ -399,9 +396,13 @@ SwitchLayout(locale, label := "") {
 
 ; Функция конвертации раскладки
 ConvertLayout(text) {
-    ; Карта физических клавиш: позиция N в enMap соответствует позиции N в ruMap.
+    ; Карта физических клавиш для конвертации текста (Caps + Shift + L).
+    ; Позиция N в enMap соответствует позиции N в ruMap.
     ; Порядок: ` + цифровой ряд, верхний ряд, home-ряд, нижний ряд.
     ; Сначала все unshifted-слои, затем все shifted-слои.
+    ;
+    ; en: qwertyuiop[]asdfghjkl;'zxcvbnm,./
+    ; ru: йцукенгшщзхъфывапролджэячсмитьбю.
     static enMap := "``1234567890-="        ; ` 1 2 3 4 5 6 7 8 9 0 - =
                   . "qwertyuiop[]"          ; q w e r t y u i o p [ ]
                   . "asdfghjkl;'"           ; a s d f g h j k l ; '
@@ -419,6 +420,9 @@ ConvertLayout(text) {
                   . "ЙЦУКЕНГШЩЗХЪ"
                   . "ФЫВАПРОЛДЖЭ"
                   . "ЯЧСМИТЬБЮ,"
+
+    if (StrLen(enMap) != StrLen(ruMap))
+        throw "ConvertLayout: enMap и ruMap должны иметь одинаковую длину"
 
     out := ""
     for char in StrSplit(text) {
