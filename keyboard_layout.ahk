@@ -424,16 +424,37 @@ ConvertLayout(text) {
     if (StrLen(enMap) != StrLen(ruMap))
         throw "ConvertLayout: enMap и ruMap должны иметь одинаковую длину"
 
+    ; Определяем направление по первому буквенному символу:
+    ; английская буква → весь текст переводим en → ru,
+    ; русская буква → весь текст переводим ru → en.
+    direction := ""
+    for char in StrSplit(text) {
+        if InStr(enMap, char, true) {
+            direction := "en2ru"
+            break
+        } else if InStr(ruMap, char, true) {
+            direction := "ru2en"
+            break
+        }
+    }
+
+    ; Если букв нет — возвращаем текст без изменений.
+    if (direction == "")
+        return text
+
     out := ""
     for char in StrSplit(text) {
-        ; Сначала пробуем перевести из английской раскладки в русскую.
-        if (p := InStr(enMap, char, true))       ; true = учитывать регистр
-            out .= SubStr(ruMap, p, 1)
-        ; Потом — обратное направление: из русской в английскую.
-        else if (p := InStr(ruMap, char, true))
-            out .= SubStr(enMap, p, 1)
-        else
-            out .= char                          ; пробелы, Enter, эмодзи и пр.
+        if (direction == "en2ru") {
+            if (p := InStr(enMap, char, true))       ; true = учитывать регистр
+                out .= SubStr(ruMap, p, 1)
+            else
+                out .= char                          ; пробелы, цифры, эмодзи и пр.
+        } else {
+            if (p := InStr(ruMap, char, true))
+                out .= SubStr(enMap, p, 1)
+            else
+                out .= char                          ; пробелы, цифры, эмодзи и пр.
+        }
     }
     return out
 }
